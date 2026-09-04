@@ -45,6 +45,21 @@ ExternalProject_Add(spike_sim
   BUILD_ALWAYS TRUE
 )
 
+install(
+  DIRECTORY "${SPIKE_INSTALL_PATH}/include/"
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  FILES_MATCHING
+  PATTERN "*.h")
+
+install(
+  DIRECTORY "${SPIKE_INSTALL_PATH}/lib/"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  FILES_MATCHING
+  # TODO: Also patch + install .pc files, but they need to be modified
+  # or rewritten completely.
+  PATTERN "*.so"
+  PATTERN "*.a")
+
 get_filename_component(SPIKE_INSTALL_PARENT ${SPIKE_INSTALL_PATH} PATH)
 
 add_subdirectory(${SPIKE_SOURCES}/sc-rvm sc-rvm)
