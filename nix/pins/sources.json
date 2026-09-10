@@ -16,9 +16,9 @@
       },
       "branch": "main",
       "submodules": false,
-      "revision": "ae703160aa24afb4ff119e86039dc0c256553b61",
-      "url": "https://github.com/LLVM-Snippy/rvmi/archive/ae703160aa24afb4ff119e86039dc0c256553b61.tar.gz",
-      "hash": "sha256-dFrVmlWSL8FaqYep2wNQO4TXvn2h7dspW+Cv1VvBY08="
+      "revision": "45f5dd94651214baae560bab7c41d680948a0d7f",
+      "url": "https://github.com/LLVM-Snippy/rvmi/archive/45f5dd94651214baae560bab7c41d680948a0d7f.tar.gz",
+      "hash": "sha256-s44v5JIKKIDFeGI85B+ANvp8GjNGmMW60TJAAzH04Gg="
     }
   },
   "version": 8
