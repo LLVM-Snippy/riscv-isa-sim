@@ -17,6 +17,7 @@
 #include "triggers.h"
 #include "../fesvr/memif.h"
 #include "vector_unit.h"
+#include "imsic.h"
 
 #define FIRST_HPMCOUNTER 3
 #define N_HPMCOUNTERS 29
@@ -77,7 +78,7 @@ typedef std::vector<std::tuple<reg_t, uint64_t, uint8_t>> commit_log_mem_t;
 // architectural state of a RISC-V hart
 struct state_t
 {
-  void add_iprio_proxy(processor_t* const proc, sscsrind_reg_csr_t_p ireg);
+  void add_ireg_proxy(sscsrind_reg_csr_t_p ireg, aia_ireg_proxy_csr_t_p aia_proxy);
   void reset(processor_t* const proc, reg_t max_isa);
   void add_csr(reg_t addr, const csr_t_p& csr);
 
@@ -140,6 +141,10 @@ struct state_t
   csr_t_p htval;
   csr_t_p htinst;
   csr_t_p hgatp;
+  csr_t_p hgeie;
+  csr_t_p hgeip;
+  csr_t_p hip;
+  csr_t_p hie;
   hvip_csr_t_p hvip;
   sstatus_csr_t_p sstatus;
   vsstatus_csr_t_p vsstatus;
@@ -233,7 +238,7 @@ public:
               const cfg_t* cfg,
               simif_t* sim, uint32_t id, bool halt_on_reset,
               FILE *log_file, std::ostream& sout_); // because of command line option --log and -s we need both
-  ~processor_t();
+  ~processor_t() override;
 
   const isa_parser_t &get_isa() const & { return isa; }
   const cfg_t &get_cfg() const & { return *cfg; }
@@ -248,6 +253,7 @@ public:
   uint32_t get_id() const { return id; }
   reg_t get_csr(int which, insn_t insn, bool write, bool peek = 0);
   reg_t get_csr(int which) { return get_csr(which, insn_t(0), false, true); }
+  reg_t get_csr_for_write(int which);
   mmu_t* get_mmu() { return mmu; }
   state_t* get_state() { return &state; }
   unsigned get_xlen() const { return xlen; }
@@ -425,6 +431,9 @@ public:
 
   vectorUnit_t VU;
   triggers::module_t TM;
+
+  unsigned geilen;
+  imsic_t_p imsic;
 };
 
 #endif
