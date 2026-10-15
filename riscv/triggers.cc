@@ -83,21 +83,21 @@ bool trigger_t::common_match(processor_t * const proc, bool use_prev_prv) const 
       // VS-mode and while SIE in vstatus is 0.
 
       const bool mstatus_mie = state->mstatus->read() & MSTATUS_MIE;
-      if (prv == PRV_M && !mstatus_mie)
+      if (state->prv == PRV_M && !mstatus_mie)
         return false;
 
       const bool sstatus_sie = state->sstatus->read() & MSTATUS_SIE;
       const bool medeleg_breakpoint = (state->medeleg->read() >> CAUSE_BREAKPOINT) & 1;
-      if (prv == PRV_S && !v && medeleg_breakpoint && !sstatus_sie)
+      if (state->prv == PRV_S && !state->v && medeleg_breakpoint && !sstatus_sie)
         return false;
 
       const bool vsstatus_sie = state->vsstatus->read() & MSTATUS_SIE;
       const bool hedeleg_breakpoint = (state->hedeleg->read() >> CAUSE_BREAKPOINT) & 1;
-      if (prv == PRV_S && v && medeleg_breakpoint && hedeleg_breakpoint && !vsstatus_sie)
+       if (state->prv == PRV_S && state->v && medeleg_breakpoint && hedeleg_breakpoint && !vsstatus_sie)
         return false;
     } else {
       // mte and mpte in tcontrol is implemented. medeleg [3] is hard-wired to 0.
-      if (prv == PRV_M && !(tcontrol_value(state) & CSR_TCONTROL_MTE))
+      if (state->prv == PRV_M && !(tcontrol_value(state) & CSR_TCONTROL_MTE))
         return false;
     }
   }
@@ -215,7 +215,8 @@ bool mcontrol_common_t::simple_match(unsigned xlen, reg_t value) const {
       return value == tdata2;
     case MATCH_NAPOT:
       {
-        reg_t mask = ~((1 << (cto(tdata2)+1)) - 1);
+        const unsigned trailing_ones = cto(tdata2) + 1;
+        reg_t mask = trailing_ones < xlen ? ~((reg_t(1) << trailing_ones) - 1) : 0;
         return (value & mask) == (tdata2 & mask);
       }
     case MATCH_GE:
@@ -259,7 +260,7 @@ std::optional<match_result_t> mcontrol_common_t::detect_memory_access_match(
         /* This is OK because this function is only called if the trigger was
          * not inhibited by the previous trigger in the chain. */
         set_hit(timing ? HIT_IMMEDIATELY_AFTER : HIT_BEFORE);
-        return match_result_t(timing_t(timing), action);
+        return match_result_t(timing_t(timing), action, address + i);
       }
 
     return std::nullopt;
@@ -272,7 +273,7 @@ std::optional<match_result_t> mcontrol_common_t::detect_memory_access_match(
     /* This is OK because this function is only called if the trigger was
       * not inhibited by the previous trigger in the chain. */
     set_hit(timing ? HIT_IMMEDIATELY_AFTER : HIT_BEFORE);
-    return match_result_t(timing_t(timing), action);
+    return match_result_t(timing_t(timing), action, address);
   }
 
   return std::nullopt;

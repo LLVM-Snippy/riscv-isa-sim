@@ -67,7 +67,7 @@ Spike supports the following RISC-V ISA features:
   - Zfbfmin extension, v0.6
   - Zvfbfmin extension, v0.6
   - Zvfbfwma extension, v0.6
-  - Zvabd extension, v0.7
+  - Zvabd extension, v0.9
   - Zvbb extension, v1.0
   - Zvbc extension, v1.0
   - Zvkg extension, v1.0
@@ -107,7 +107,8 @@ Build Steps
 We assume that the RISCV environment variable is set to the RISC-V tools
 install path.
 
-    $ apt-get install device-tree-compiler libboost-regex-dev libboost-system-dev
+    $ apt-get install device-tree-compiler
+    $ apt-get install libboost-regex-dev libboost-system-dev
     $ mkdir build
     $ cd build
     $ ../configure --prefix=$RISCV
@@ -116,6 +117,9 @@ install path.
 
 If your system uses the `yum` package manager, you can substitute
 `yum install dtc` for the first step.
+
+You can skip the second step if you don't need to use the command I/O via socket
+for the interactive debug mode.
 
 Build Steps on OpenBSD
 ----------------------

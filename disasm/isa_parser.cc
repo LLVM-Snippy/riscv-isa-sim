@@ -92,6 +92,24 @@ static const extension_info_t extension_infos[] = {
   {"p", {'P'}},
   {"v", {'V'}, {"zve64d", "zvl128b"}},
   {"h", {'H'}},
+  // S and U are selected by --priv; implied bits record prerequisites.
+  {"s", {'S', 'U'}},
+  {"u", {'U'}},
+  {"sha", {}, {"h", "ssstateen", "shcounterenw", "shvstvala", "shtvala", "shvstvecd", "shvsatpa", "shgatpa"}},
+  // Profile properties imply privilege extensions, but no further features.
+  {"ssstateen", {}, {"s"}},
+  {"shcounterenw", {}, {"h"}},
+  {"shvstvala", {}, {"h"}},
+  {"shtvala", {}, {"h"}},
+  {"shvstvecd", {}, {"h"}},
+  {"shvsatpa", {}, {"h"}},
+  {"shgatpa", {}, {"h"}},
+  {"ssccptr", {}, {"s"}},
+  {"sstvecd", {}, {"s"}},
+  {"sstvala", {}, {"s"}},
+  {"sscounterenw", {}, {"s"}},
+  {"ssu64xl", {}, {"s"}},
+  {"ssstrict", {}, {"s"}},
   {"zfh", {EXT_ZFH}, {"zfhmin"}},
   {"zfhmin", {'F', EXT_ZFHMIN}},
   {"zvfh", {EXT_ZVFH}, {"zvfhmin", "zfhmin"}},
@@ -148,28 +166,32 @@ static const extension_info_t extension_infos[] = {
   {"zksed", {EXT_ZKSED}},
   {"zksh", {EXT_ZKSH}},
   {"zkr", {EXT_ZKR}},
+  {"zic64b"},
   {"zkt"},
   {"smepmp", {EXT_SMEPMP}},
   {"smpmpdeleg", {EXT_SMPMPDELEG}},
-  {"sspmp", {EXT_SSPMP, EXT_SMCSRIND, EXT_SSCSRIND}, {"smpmpdeleg"}},
-  {"sspmpen", {EXT_SSPMPEN}},
+  {"sspmp", {EXT_SSPMP, EXT_SMCSRIND, EXT_SSCSRIND}, {"smpmpdeleg", "s"}},
+  {"sspmpen", {EXT_SSPMPEN}, {"s"}},
   {"smstateen", {EXT_SMSTATEEN}},
   {"smpmpmt", {EXT_SMPMPMT}},
   {"smrnmi", {EXT_SMRNMI}},
-  {"sscofpmf", {EXT_SSCOFPMF}},
-  {"svadu", {EXT_SVADU}},
-  {"svade", {EXT_SVADE}},
-  {"svnapot", {EXT_SVNAPOT}},
-  {"svpbmt", {EXT_SVPBMT}},
-  {"svinval", {EXT_SVINVAL}},
-  {"svukte", {EXT_SVUKTE}},
+  {"sscofpmf", {EXT_SSCOFPMF}, {"s"}},
+  {"svadu", {EXT_SVADU}, {"s"}},
+  {"svade", {EXT_SVADE}, {"s"}},
+  {"svbare", {}, {"s"}},
+  {"svnapot", {EXT_SVNAPOT}, {"s"}},
+  {"svpbmt", {EXT_SVPBMT}, {"s"}},
+  {"svinval", {EXT_SVINVAL}, {"s"}},
+  {"svukte", {EXT_SVUKTE}, {"s"}},
   {"zfa", {EXT_ZFA}},
   {"zicbom", {EXT_ZICBOM}},
   {"zicboz", {EXT_ZICBOZ}},
   {"zicbop"},
   {"ziccamoa"},
+  {"ziccamoc"},
   {"zicclsm", {EXT_ZICCLSM}},
   {"ziccrse"},
+  {"ztso"},
   {"zicntr", {EXT_ZICNTR}},
   {"zicond", {EXT_ZICOND}},
   {"zihpm", {EXT_ZIHPM}},
@@ -222,26 +244,28 @@ static const extension_info_t extension_infos[] = {
   {"zvtdmm", {EXT_ZVTDMM}, {"zvt64e", "zve64d"}},
   {"zvzip", {EXT_ZVZIP}},
   {"zilx", {EXT_ZILX}},
-  {"sstc", {EXT_SSTC}},
+  {"sstc", {EXT_SSTC, EXT_ZICNTR}, {"s"}},
   {"smcsrind", {EXT_SMCSRIND}},
-  {"sscsrind", {EXT_SSCSRIND}},
+  {"sscsrind", {EXT_SSCSRIND}, {"s"}},
   {"smcntrpmf", {EXT_SMCNTRPMF}},
   {"smcdeleg", {EXT_SMCDELEG}},
-  {"ssccfg", {EXT_SSCCFG}},
+  {"ssccfg", {EXT_SSCCFG}, {"s"}},
   {"zimop", {EXT_ZIMOP}},
   {"zcmop", {EXT_ZCMOP}, {"zca"}},
   {"zalasr", {EXT_ZALASR}},
-  {"ssqosid", {EXT_SSQOSID}},
+  {"ssqosid", {EXT_SSQOSID}, {"s"}},
   {"zicfilp", {EXT_ZICFILP}},
   {"zicfiss", {EXT_ZICFISS}, {"zaamo", "zimop"}},
   {"smmpm", {EXT_SMMPM}},
   {"smnpm", {EXT_SMNPM}},
-  {"ssnpm", {EXT_SSNPM}},
-  {"ssdbltrp", {EXT_SSDBLTRP}},
+  {"ssnpm", {EXT_SSNPM}, {"s"}},
+  {"sspm", {}, {"s"}},
+  {"supm", {}, {"u"}},
+  {"ssdbltrp", {EXT_SSDBLTRP}, {"s"}},
   {"smdbltrp", {EXT_SMDBLTRP}},
   {"smaia", {EXT_SMAIA, EXT_SSAIA, EXT_SMCSRIND, EXT_SSCSRIND}},
-  {"ssaia", {EXT_SSAIA, EXT_SSCSRIND}},
-  {"svvptc"},
+  {"ssaia", {EXT_SSAIA, EXT_SSCSRIND}, {"s"}},
+  {"svvptc", {}, {"s"}},
 };
 
 static const extension_combination_t extension_combinations[] = {
@@ -310,15 +334,18 @@ void isa_parser_t::apply_zve_properties(const std::string& ext_str, const char* 
 void isa_parser_t::add_extension(const std::string& ext_str, const char* str)
 {
   if (const auto* info = find_extension_info(ext_str)) {
+    // Spike fixes UXLEN to XLEN; RV32 cannot provide sstatus.UXL=2.
+    if (ext_str == "ssu64xl" && max_xlen != 64)
+      bad_isa_string(str, "'Ssu64xl' requires RV64");
     for (const auto ext : info->enables) {
       extension_table[ext] = true;
     }
     for (const auto implied : info->implies) {
       add_extension(implied, str);
     }
-    if (ext_str.substr(0, 3) == "zve")
+    if (ext_str.starts_with("zve"))
       apply_zve_properties(ext_str, str);
-  } else if (ext_str.substr(0, 3) == "zvl") {
+  } else if (ext_str.starts_with("zvl")) {
     reg_t new_vlen;
     try {
       new_vlen = safe_stoul(ext_str.substr(3, ext_str.size() - 4));
@@ -345,9 +372,9 @@ isa_parser_t::isa_parser_t(const char* str, const char *priv)
   isa_string = strtolower(str);
   const char* all_subsets = "mafdqcbpvh";
 
-  if (isa_string.compare(0, 4, "rv32") == 0)
+  if (isa_string.starts_with("rv32"))
     max_xlen = 32;
-  else if (isa_string.compare(0, 4, "rv64") == 0)
+  else if (isa_string.starts_with("rv64"))
     max_xlen = 64;
   else
     bad_isa_string(str, "ISA strings must begin with RV32 or RV64");
@@ -462,6 +489,12 @@ isa_parser_t::isa_parser_t(const char* str, const char *priv)
     user = supervisor = true;
   else
     bad_priv_string(priv);
+
+  // Do not silently override the privilege modes selected by --priv.
+  if (extension_table['S'] && !supervisor)
+    bad_isa_string(str, "ISA extensions require S mode");
+  if (extension_table['U'] && !user)
+    bad_isa_string(str, "ISA extensions require U mode");
 
   extension_table['U'] = user;
   extension_table['S'] = supervisor;

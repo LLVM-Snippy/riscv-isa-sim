@@ -17,8 +17,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <iomanip>
-#include <assert.h>
-#include <limits.h>
+#include <cassert>
+#include <climits>
 #include <stdexcept>
 #include <string>
 #include <algorithm>
@@ -40,7 +40,7 @@ processor_t::processor_t(const char* isa_str, const char* priv_str,
   log_file(log_file), sout_(sout_.rdbuf()), halt_on_reset(halt_on_reset),
   check_triggers_icount(false),
   impl_table(256, false), extension_enable_table(isa.get_extension_table()),
-  last_pc(1), executions(1), TM(cfg->trigger_count)
+  last_pc(1), executions(1), TM(cfg->trigger_count), geilen(GEILEN)
 {
   VU.p = this;
   TM.proc = this;
@@ -71,6 +71,10 @@ processor_t::processor_t(const char* isa_str, const char* priv_str,
   set_max_vaddr_bits(0);
   set_impl(IMPL_MMU_ASID, true);
   set_impl(IMPL_MMU_VMID, true);
+
+  // construct IMSIC files
+  if (extension_enabled_const(EXT_SMAIA) || extension_enabled_const(EXT_SSAIA))
+    imsic = std::make_shared<imsic_t>(this, isa.extension_enabled('H') ? geilen : 0);
 
   reset();
 
@@ -217,6 +221,13 @@ void processor_t::set_pmp_granularity(reg_t gran)
 
 void processor_t::set_spmp_addr_entry()
 {
+  // The SPMP entries are reached through the indirect CSR interface, which
+  // only exists when Sscsrind/Smcsrind are implemented.  Smpmpdeleg can be
+  // enabled on its own, in which case mireg/sireg are never allocated and
+  // writing mpmpdeleg from the guest dereferences a null pointer.
+  if (!extension_enabled_const(EXT_SSPMP))
+    return;
+
   for (size_t i = 0; i < state.max_pmp; ++i) {
     state.mireg[0]->add_ireg_proxy(0x100+i, std::make_shared<const_csr_t>(this, 0x100+i, 0));
     state.nonvirtual_sireg[0]->add_ireg_proxy(0x100+i, std::make_shared<const_csr_t>(this, 0x100+i, 0));
@@ -269,15 +280,17 @@ reg_t processor_t::select_an_interrupt_with_default_priority(reg_t enabled_inter
     enabled_interrupts = MIP_SSIP;
   else if (enabled_interrupts & MIP_STIP)
     enabled_interrupts = MIP_STIP;
-  else if (enabled_interrupts & MIP_LCOFIP)
-    enabled_interrupts = MIP_LCOFIP;
+  else if (enabled_interrupts & MIP_SGEIP)
+    enabled_interrupts = MIP_SGEIP;
   else if (enabled_interrupts & MIP_VSEIP)
     enabled_interrupts = MIP_VSEIP;
   else if (enabled_interrupts & MIP_VSSIP)
     enabled_interrupts = MIP_VSSIP;
   else if (enabled_interrupts & MIP_VSTIP)
     enabled_interrupts = MIP_VSTIP;
-
+  else if (enabled_interrupts & MIP_LCOFIP)
+    enabled_interrupts = MIP_LCOFIP;
+  else assert(0);
   return enabled_interrupts;
 }
 
@@ -648,6 +661,15 @@ reg_t processor_t::get_csr(int which, insn_t insn, bool write, bool peek)
   // If we get here, the CSR doesn't exist.  Unimplemented CSRs always throw
   // illegal-instruction exceptions, not virtual-instruction exceptions.
   throw trap_illegal_instruction(insn.bits());
+}
+
+reg_t processor_t::get_csr_for_write(int which)
+{
+  auto search = state.csrmap.find(which);
+  if (search != state.csrmap.end())
+    return search->second->read_for_write();
+
+  abort(); // The preceding permission-checked CSR read found this CSR.
 }
 
 const insn_desc_t insn_desc_t::illegal_instruction = {
